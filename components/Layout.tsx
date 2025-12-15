@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Phone, 
@@ -8,7 +8,14 @@ import {
   Menu,
   X,
   Stethoscope,
-  Gamepad2
+  Gamepad2,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  Calendar,
+  Thermometer
 } from 'lucide-react';
 import { ViewState } from '../types';
 
@@ -20,6 +27,44 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ currentView, onViewChange, children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [weather, setWeather] = useState<{temp: number, code: number} | null>(null);
+
+  useEffect(() => {
+    // Fetch Gangnam Station weather (Lat: 37.4979, Lon: 127.0276)
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.4979&longitude=127.0276&current_weather=true&timezone=Asia%2FSeoul');
+        const data = await res.json();
+        if (data.current_weather) {
+          setWeather({
+            temp: data.current_weather.temperature,
+            code: data.current_weather.weathercode
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch weather", e);
+      }
+    };
+    fetchWeather();
+  }, []);
+
+  const getWeatherIcon = (code: number) => {
+    if (code <= 1) return <Sun className="w-3.5 h-3.5 text-orange-500" />; // Clear
+    if (code <= 3) return <Cloud className="w-3.5 h-3.5 text-slate-500" />; // Cloudy
+    if (code <= 48) return <Cloud className="w-3.5 h-3.5 text-slate-400" />; // Fog
+    if (code <= 67) return <CloudRain className="w-3.5 h-3.5 text-blue-500" />; // Rain
+    if (code <= 77) return <CloudSnow className="w-3.5 h-3.5 text-sky-300" />; // Snow
+    if (code <= 82) return <CloudRain className="w-3.5 h-3.5 text-blue-600" />; // Showers
+    if (code <= 99) return <CloudLightning className="w-3.5 h-3.5 text-purple-500" />; // Thunderstorm
+    return <Sun className="w-3.5 h-3.5 text-orange-500" />;
+  };
+
+  const today = new Date().toLocaleDateString('ko-KR', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric', 
+    weekday: 'long' 
+  });
 
   const menuItems = [
     { id: 'dashboard' as ViewState, label: '대시보드', icon: LayoutDashboard },
@@ -104,11 +149,50 @@ const Layout: React.FC<LayoutProps> = ({ currentView, onViewChange, children }) 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen scroll-smooth">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
+          
+          {/* Top Info Bar (Date & Weather) */}
+          <div className="flex justify-end items-center gap-4 mb-6 text-xs font-semibold text-slate-500">
+            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>{today}</span>
+            </div>
+            {weather && (
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-1">
+                   <MapPin className="w-3 h-3 text-slate-400" /> 
+                   <span>강남구</span>
+                </div>
+                <div className="w-px h-3 bg-slate-200"></div>
+                <div className="flex items-center gap-1">
+                  {getWeatherIcon(weather.code)}
+                  <span>{weather.temp}°C</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {children}
         </div>
       </main>
     </div>
   );
 };
+
+// Helper for MapPin inside the component
+const MapPin = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
 
 export default Layout;
